@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lecture Reminder</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FullCalendar CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/main.min.css" rel="stylesheet">
+    <!-- FullCalendar JS -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/main.min.js"></script>
+
+</head>
+
+<body class="bg-gray-100 min-h-screen">
+
+    <nav class="bg-blue-600 p-4 text-white flex justify-between">
+        <a href="/" class="text-2xl font-bold">Lecture Reminder</a>
+        <div>
+            {% if user.is_authenticated %}
+            <form action="{% url 'logout' %}" method="post" class="inline ml-4">
+                {% csrf_token %}
+                <button type="submit" class="bg-red-600 hover:bg-red-800 text-white px-6 py-2 rounded-lg">
+                    🚪 Logout
+                </button>
+            </form>
+            {% else %}
+                <a href="{% url 'login' %}" class="ml-4">Login</a>
+                <a href="{% url 'register' %}" class="ml-4">Register</a>
+            {% endif %}
+        </div>
+    </nav>
+    {% if messages %}
+    <div class="max-w-4xl mx-auto mt-4">
+        {% for message in messages %}
+        <div class="p-4 rounded-lg {% if message.tags == 'success' %}bg-green-200 text-green-800{% elif message.tags == 'error' %}bg-red-200 text-red-800{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+
+    <div class="container mx-auto p-6">
+        {% block content %}
+        {% endblock %}
+    </div>
+
+</body>
+
+</html>
