@@ -8,14 +8,30 @@
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FullCalendar CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/main.min.css" rel="stylesheet">
-    <!-- FullCalendar JS -->
+
+    <!-- Google Fonts CDN -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- FullCalendar -->
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/main.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/main.min.css" rel="stylesheet">
 
 </head>
 
-<body class="bg-gray-100 min-h-screen">
+<body class="bg-gray-100 min-h-screen font-sans">
 
     <nav class="bg-blue-600 p-4 text-white flex justify-between">
         <a href="/" class="text-2xl font-bold">Lecture Reminder</a>
@@ -23,7 +39,7 @@
             {% if user.is_authenticated %}
             <form action="{% url 'logout' %}" method="post" class="inline ml-4">
                 {% csrf_token %}
-                <button type="submit" class="bg-red-600 hover:bg-red-800 text-white px-6 py-2 rounded-lg">
+                <button type="submit" class="bg-600 hover:bg-red-800 text-white px-6 py-2 rounded-lg">
                     🚪 Logout
                 </button>
             </form>
@@ -33,6 +49,7 @@
             {% endif %}
         </div>
     </nav>
+
     {% if messages %}
     <div class="max-w-4xl mx-auto mt-4">
         {% for message in messages %}
@@ -43,11 +60,54 @@
     </div>
     {% endif %}
 
-
     <div class="container mx-auto p-6">
         {% block content %}
         {% endblock %}
     </div>
+
+    <!-- Firebase Scripts -->
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-messaging.js"></script>
+
+<script>
+  // Your Firebase config (from Firebase Console)
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID",
+  };
+
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+
+  const messaging = firebase.messaging();
+
+  // Request permission and get token
+  messaging.requestPermission()
+    .then(() => messaging.getToken({ vapidKey: 'YOUR_PUBLIC_VAPID_KEY' }))
+    .then((token) => {
+        console.log("FCM Token:", token);
+        // TODO: send this token to your Django backend and save it for the user
+    })
+    .catch((err) => {
+        console.error("FCM permission denied or error:", err);
+    });
+
+  // Listen for incoming messages
+  messaging.onMessage((payload) => {
+    console.log("Message received:", payload);
+    // Optionally show a custom notification
+    new Notification(payload.notification.title, {
+        body: payload.notification.body,
+        icon: payload.notification.icon
+    });
+  });
+</script>
+
+
 
 </body>
 

@@ -1,0 +1,41 @@
+{% extends 'reminder/base.html' %}
+
+{% block content %}
+<h1 class="text-4xl font-bold text-center mb-8">Lecture Calendar 📅</h1>
+
+<!-- Calendar Container -->
+<div id="calendar"></div>
+
+<!-- FullCalendar Script -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/main.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/main.min.css" rel="stylesheet">
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        let calendarEl = document.getElementById("calendar");
+
+        if (!calendarEl) {
+            console.error("❌ Calendar container not found!");
+            return;
+        }
+
+        console.log("✅ Calendar found, initializing...");
+
+        let calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: "dayGridMonth",
+            height: "auto",
+            events: "/api/lectures/", // Fetch from API
+            eventClick: function (info) {
+                if (info.event.url) {
+                    console.log("📌 Event Clicked:", info.event);
+                    window.location.href = info.event.url;
+                }
+            }
+        });
+
+        calendar.render();
+        console.log("✅ Calendar rendered successfully!");
+    });
+</script>
+
+{% endblock %}

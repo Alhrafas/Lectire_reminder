@@ -1,14 +1,16 @@
-from django.shortcuts import render, redirect
-from django.contrib.auth import login
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import login
 from django.http import JsonResponse
 from .models import Lecture
 from .forms import LectureForm, UserRegistrationForm
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.utils.dateparse import parse_date
-import datetime
-
+from datetime import timedelta, datetime
+from .utils import send_lecture_reminder
+from celery import current_app
+from django.utils.timezone import now
+from django.conf import settings
+from reminder.tasks import send_lecture_push_notification
 
 
 def register(request):
@@ -24,6 +26,7 @@ def register(request):
         form = UserRegistrationForm()
     return render(request, 'reminder/register.html', {'form': form})
 
+
 @login_required
 def dashboard(request):
     category_filter = request.GET.get("category", "")
@@ -31,35 +34,59 @@ def dashboard(request):
     sort_by = request.GET.get("sort", "date_asc")  # Default: Oldest first
 
     lectures = Lecture.objects.filter(user=request.user)
+    completed_lectures = lectures.filter(date__lt=now().date())
+    upcoming_lectures = lectures.filter(date__gte=now().date())
+
+    upcoming_soon_lectures = upcoming_lectures.filter(
+        date=now().date(),
+        time__gte=now().time(),
+        time__lte=(now() + timedelta(hours=1)).time()
+    )
 
     # Apply category filter
     if category_filter:
-        lectures = lectures.filter(category=category_filter)
+        upcoming_lectures = upcoming_lectures.filter(category=category_filter)
+        completed_lectures = completed_lectures.filter(category=category_filter)
 
     # Apply search filter
     if search_query:
-        lectures = lectures.filter(title__icontains=search_query)
+        upcoming_lectures = upcoming_lectures.filter(title__icontains=search_query)
+        completed_lectures = completed_lectures.filter(title__icontains=search_query)
 
     # Apply sorting
     if sort_by == "date_asc":
-        lectures = lectures.order_by("date", "time")
+        upcoming_lectures = upcoming_lectures.order_by("date", "time")
+        completed_lectures = completed_lectures.order_by("-date", "-time")
     elif sort_by == "date_desc":
-        lectures = lectures.order_by("-date", "-time")
+        upcoming_lectures = upcoming_lectures.order_by("-date", "-time")
+        completed_lectures = completed_lectures.order_by("date", "time")
     elif sort_by == "title_asc":
-        lectures = lectures.order_by("title")
+        upcoming_lectures = upcoming_lectures.order_by("title")
+        completed_lectures = completed_lectures.order_by("title")
     elif sort_by == "title_desc":
-        lectures = lectures.order_by("-title")
+        upcoming_lectures = upcoming_lectures.order_by("-title")
+        completed_lectures = completed_lectures.order_by("-title")
+
+    # Progress tracking
+    total_lectures = lectures.count()
+    completed_count = completed_lectures.count()
+    progress_percentage = (completed_count / total_lectures * 100) if total_lectures > 0 else 0
+
+    next_lecture = upcoming_lectures.order_by("date", "time").first()
 
     return render(request, 'reminder/dashboard.html', {
-        "lectures": lectures,
+        "next_lecture": next_lecture,
+        "upcoming_soon_lectures": upcoming_soon_lectures,
+        "upcoming_lectures": upcoming_lectures,
+        "completed_lectures": completed_lectures,
         "category_filter": category_filter,
         "search_query": search_query,
         "sort_by": sort_by,
+        "progress_percentage": round(progress_percentage, 2),
+        "total_lectures": total_lectures,
     })
 
-@login_required
-def calendar_view(request):
-    return render(request, "reminder/calendar.html")
+
 
 @login_required
 def lecture_api(request):
@@ -77,6 +104,7 @@ def lecture_api(request):
 
     return JsonResponse(events, safe=False)
 
+
 @login_required
 def add_lecture(request):
     if request.method == "POST":
@@ -92,6 +120,7 @@ def add_lecture(request):
 
     return render(request, "reminder/lecture_form.html", {"form": form})
 
+
 @login_required
 def edit_lecture(request, pk):
     lecture = get_object_or_404(Lecture, id=pk, user=request.user)
@@ -106,6 +135,7 @@ def edit_lecture(request, pk):
         form = LectureForm(instance=lecture)  # Pre-fill form
 
     return render(request, "reminder/lecture_form.html", {"form": form, "lecture": lecture})
+
 
 @login_required
 def delete_lecture(request, pk):
