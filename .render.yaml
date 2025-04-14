@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: lecture-reminder
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn lecture_reminder.wsgi"
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: lecture_reminder.settings
+      - key: SECRET_KEY
+        generateValue: true
