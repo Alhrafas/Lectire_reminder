@@ -6,11 +6,9 @@ from .forms import LectureForm, UserRegistrationForm
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from datetime import timedelta, datetime
-from .utils import send_lecture_reminder
 from celery import current_app
 from django.utils.timezone import now
 from django.conf import settings
-from reminder.tasks import send_lecture_push_notification
 
 
 def register(request):
